@@ -35,9 +35,18 @@ var tiles = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
 }).addTo(map);
 
-addressPoints = addressPoints.map(function (p) { return [p[0], p[1]]; });
+addressPoints = addressPoints.map(function (p, i) { return [p[0], p[1], i]; });
 
-var heat = L.heatLayer(addressPoints).addTo(map);
+var heat = L.heatLayer(addressPoints, {
+    accumulate: (d, last) => {
+        last = last || [];
+        last.push(d);
+        return last;
+    },
+    reduce: obj => {
+        return obj.reduce((acc, d) => acc + d) / obj.length;
+    }
+}).addTo(map);
 
 </script>
 </body>

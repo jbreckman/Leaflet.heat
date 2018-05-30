@@ -6,7 +6,9 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
     //     minOpacity: 0.05,
     //     radius: 25,
     //     blur: 15,
-    //     max: 1.0
+    //     max: 1.0,
+    //     accumulate: (d, last) => obj
+    //     reduce: obj => a
     // },
 
     initialize: function (latlngs, options) {
@@ -139,6 +141,8 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
             maxK = Number.NEGATIVE_INFINITY,
             cellSize = r / 2,
             grid = [],
+            accumulate = this.options.accumulate || function(d, last) { return d + (last || 0) },
+            reduce = this.options.reduce || function(d) { return d; },
             panePos = this._map._getMapPanePos(),
             offsetX = panePos.x % cellSize,
             offsetY = panePos.y % cellSize,
@@ -160,14 +164,12 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
                 cell = grid[y][x];
 
                 if (!cell) {
-                    grid[y][x] = [p.x, p.y, k];
-                    maxK = Math.max(k, maxK);
+                    grid[y][x] = [p.x, p.y, accumulate(k)];
 
                 } else {
                     cell[0] = (cell[0] * cell[2] + p.x * k) / (cell[2] + k); // x
                     cell[1] = (cell[1] * cell[2] + p.y * k) / (cell[2] + k); // y
-                    cell[2] += k; // cumulated intensity value
-                    maxK = Math.max(cell[2], maxK);
+                    cell[2] = accumulate(k, cell[2]); // cumulated intensity value
                 }
             }
         }
@@ -177,14 +179,21 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
                 for (j = 0, len2 = grid[i].length; j < len2; j++) {
                     cell = grid[i][j];
                     if (cell) {
+                        var value = reduce(cell[2]);
+                        maxK = Math.max(maxK, value);
+
                         data.push([
                             Math.round(cell[0]),
                             Math.round(cell[1]),
-                            cell[2] / maxK * max,
+                            value,
                         ]);
                     }
                 }
             }
+        }
+
+        for (i = 0; i < data.length; i++) {
+            data[i][2] = data[i][2] / maxK * max;
         }
         // console.timeEnd('process');
 
