@@ -4,7 +4,6 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
 
     // options: {
     //     minOpacity: 0.05,
-    //     maxZoom: 18,
     //     radius: 25,
     //     blur: 15,
     //     max: 1.0
@@ -137,8 +136,7 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
                 size.add([r, r])),
 
             max = this.options.max === undefined ? 1 : this.options.max,
-            maxZoom = this.options.maxZoom === undefined ? this._map.getMaxZoom() : this.options.maxZoom,
-            v = 1 / Math.pow(2, Math.max(0, Math.min(maxZoom - this._map.getZoom(), 12))),
+            maxK = Number.NEGATIVE_INFINITY,
             cellSize = r / 2,
             grid = [],
             panePos = this._map._getMapPanePos(),
@@ -156,18 +154,20 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
                 var alt =
                     this._latlngs[i].alt !== undefined ? this._latlngs[i].alt :
                     this._latlngs[i][2] !== undefined ? +this._latlngs[i][2] : 1;
-                k = alt * v;
+                k = alt;
 
                 grid[y] = grid[y] || [];
                 cell = grid[y][x];
 
                 if (!cell) {
                     grid[y][x] = [p.x, p.y, k];
+                    maxK = Math.max(k, maxK);
 
                 } else {
                     cell[0] = (cell[0] * cell[2] + p.x * k) / (cell[2] + k); // x
                     cell[1] = (cell[1] * cell[2] + p.y * k) / (cell[2] + k); // y
                     cell[2] += k; // cumulated intensity value
+                    maxK = Math.max(cell[2], maxK);
                 }
             }
         }
@@ -180,7 +180,7 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
                         data.push([
                             Math.round(cell[0]),
                             Math.round(cell[1]),
-                            Math.min(cell[2], max)
+                            cell[2] / maxK * max,
                         ]);
                     }
                 }
